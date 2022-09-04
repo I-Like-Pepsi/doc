@@ -2,7 +2,7 @@
 
 ## 背景
 
-在很长的一段时间里面，关于Spring父子容器这个问题我一直没太关注，但是上次同事碰见一个奇怪的bug然我决定重新了解一下Spring中的父子容器。
+在很长的一段时间里面，关于Spring父子容器这个问题我一直没太关注，但是上次同事碰见一个奇怪的bug于是我决定重新了解一下Spring中的父子容器。
 
 项目是一个老的SSM项目，同事在使用AOP对Controller层的方法进行拦截做token验证。这个功能在实际的开发项目中很常见对吧，估计大家都能轻易解决。但是问题就处在了AOP上面，根据AOP失效的八股文全部排查了一遍，问题还是没有解决。但是神奇的问题出现了，我尝试把切点放在Service中的方法AOP生效了。然后我看了下配置文件，发现了问题所在。
 
@@ -49,8 +49,6 @@
         <context:exclude-filter type="regex" expression="com.buydeem.container.controller.*"/>
     </context:component-scan>
 
-    <aop:aspectj-autoproxy/>
-
 </beans>
 ```
 
@@ -89,9 +87,9 @@ public class TokenAspect {
 ```java
 public interface HierarchicalBeanFactory extends BeanFactory {
 
-	BeanFactory getParentBeanFactory();
+    BeanFactory getParentBeanFactory();
 
-	boolean containsLocalBean(String name);
+    boolean containsLocalBean(String name);
 
 }
 ```
@@ -149,7 +147,6 @@ public class ParentContainerConfig {
 - 子容器配置
 
 ```java
-
 @Component
 public class ChildService {
 }
@@ -200,7 +197,7 @@ public class App {
         //子容器
         ConfigurableApplicationContext childContainer = new AnnotationConfigApplicationContext(ChildContainerConfig.class);
         childContainer.setParent(parentContainer);
-        
+
         try {
             ChildService childService = parentContainer.getBean(ChildService.class);
             log.info("{}",childService);
@@ -215,7 +212,7 @@ public class App {
 
 ## SSM中的父子容器
 
-回到我们最初的问题，在SSM中存在这两个容器，这也是导致我们前面AOP失败的原因。那么SSM中的父子容器时如何被创建和设置的呢？
+回到我们最初的问题，在SSM中存在这两个容器，这也是导致我们前面AOP失败的原因。那么SSM中的父子容器是如何被创建和设置的呢？
 
 ### web.xml
 
@@ -252,7 +249,7 @@ public class App {
     <servlet-name>dispatcher</servlet-name>
     <url-pattern>/</url-pattern>
   </servlet-mapping>
-  
+
 </web-app>
 ```
 
@@ -265,10 +262,10 @@ public class App {
 其中**ContextLoaderListener**就是Servlet中的监听器，当Servlet容器启动时就会调用```contextInitialized()```方法进行初始化，该方法的实现如下：
 
 ```java
-	@Override
-	public void contextInitialized(ServletContextEvent event) {
-		initWebApplicationContext(event.getServletContext());
-	}
+    @Override
+    public void contextInitialized(ServletContextEvent event) {
+        initWebApplicationContext(event.getServletContext());
+    }
 ```
 
 而```initWebApplicationConte()```的实现则在**ContextLoader**这个类中，该方法的实现如下：
@@ -348,67 +345,67 @@ public class App {
 
 子容器的创建我们需要关注的就是web.xml中```DispatcherServlet```配置了，```DispatcherServlet```说白了就是一个Servlet，当Servlet容器在实例化Servlet后就会调用其```init()```方法就行初始化，而`DispatcherServlet`的继承如下图所示：
 
-![](C:\Users\zengchao\AppData\Roaming\marktext\images\2022-09-04-14-10-27-image.png)
+![DispatcherServlet](https://files.mdnice.com/user/14227/5dcf58a8-eb51-43e2-8e16-6c953dd4e771.png)
 
 而```init()```方法的实现则是在**HttpServletBean**中，方法定义如下：
 
 ```java
-	public final void init() throws ServletException {
+    public final void init() throws ServletException {
 
-		// Set bean properties from init parameters.
-		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
-		if (!pvs.isEmpty()) {
-			try {
-				BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
-				ResourceLoader resourceLoader = new ServletContextResourceLoader(getServletContext());
-				bw.registerCustomEditor(Resource.class, new ResourceEditor(resourceLoader, getEnvironment()));
-				initBeanWrapper(bw);
-				bw.setPropertyValues(pvs, true);
-			}
-			catch (BeansException ex) {
-				if (logger.isErrorEnabled()) {
-					logger.error("Failed to set bean properties on servlet '" + getServletName() + "'", ex);
-				}
-				throw ex;
-			}
-		}
+        // Set bean properties from init parameters.
+        PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
+        if (!pvs.isEmpty()) {
+            try {
+                BeanWrapper bw = PropertyAccessorFactory.forBeanPropertyAccess(this);
+                ResourceLoader resourceLoader = new ServletContextResourceLoader(getServletContext());
+                bw.registerCustomEditor(Resource.class, new ResourceEditor(resourceLoader, getEnvironment()));
+                initBeanWrapper(bw);
+                bw.setPropertyValues(pvs, true);
+            }
+            catch (BeansException ex) {
+                if (logger.isErrorEnabled()) {
+                    logger.error("Failed to set bean properties on servlet '" + getServletName() + "'", ex);
+                }
+                throw ex;
+            }
+        }
 
-		// Let subclasses do whatever initialization they like.
-		initServletBean();
-	}
+        // Let subclasses do whatever initialization they like.
+        initServletBean();
+    }
 ```
 
 从实现上可以看出并没有子容器相关代码，但是它留了一个方法，用来让子类扩展实现自己的初始化。而该方法的实现则是在**FrameworkServlet**中实现的，源码如下：
 
 ```java
-	protected final void initServletBean() throws ServletException {
-		getServletContext().log("Initializing Spring " + getClass().getSimpleName() + " '" + getServletName() + "'");
-		if (logger.isInfoEnabled()) {
-			logger.info("Initializing Servlet '" + getServletName() + "'");
-		}
-		long startTime = System.currentTimeMillis();
+    protected final void initServletBean() throws ServletException {
+        getServletContext().log("Initializing Spring " + getClass().getSimpleName() + " '" + getServletName() + "'");
+        if (logger.isInfoEnabled()) {
+            logger.info("Initializing Servlet '" + getServletName() + "'");
+        }
+        long startTime = System.currentTimeMillis();
 
-		try {
-			this.webApplicationContext = initWebApplicationContext();
-			initFrameworkServlet();
-		}
-		catch (ServletException | RuntimeException ex) {
-			logger.error("Context initialization failed", ex);
-			throw ex;
-		}
+        try {
+            this.webApplicationContext = initWebApplicationContext();
+            initFrameworkServlet();
+        }
+        catch (ServletException | RuntimeException ex) {
+            logger.error("Context initialization failed", ex);
+            throw ex;
+        }
 
-		if (logger.isDebugEnabled()) {
-			String value = this.enableLoggingRequestDetails ?
-					"shown which may lead to unsafe logging of potentially sensitive data" :
-					"masked to prevent unsafe logging of potentially sensitive data";
-			logger.debug("enableLoggingRequestDetails='" + this.enableLoggingRequestDetails +
-					"': request parameters and headers will be " + value);
-		}
+        if (logger.isDebugEnabled()) {
+            String value = this.enableLoggingRequestDetails ?
+                    "shown which may lead to unsafe logging of potentially sensitive data" :
+                    "masked to prevent unsafe logging of potentially sensitive data";
+            logger.debug("enableLoggingRequestDetails='" + this.enableLoggingRequestDetails +
+                    "': request parameters and headers will be " + value);
+        }
 
-		if (logger.isInfoEnabled()) {
-			logger.info("Completed initialization in " + (System.currentTimeMillis() - startTime) + " ms");
-		}
-	}
+        if (logger.isInfoEnabled()) {
+            logger.info("Completed initialization in " + (System.currentTimeMillis() - startTime) + " ms");
+        }
+    }
 ```
 
 而实际创建子容器的实现则是在```initWebApplicationContext()```方法中实现的，该方法会创建子容器，并将先前创建的父容器从servletContext中取出来设置为子容器的父容器。
@@ -463,8 +460,6 @@ public class HelloWorldController {
 
 从上面的打印结果可以看出HelloService和HelloWorldController中的容器并不是同一个。
 
-
-
 ## 解决办法
 
 回到我们最初的问题，我们现在知道了AOP失效的原因是因为父子容器导致的，因为我们只在父容器中开启了@AspectJ支持，在子容器中我们并没有开启。
@@ -481,8 +476,6 @@ public class HelloWorldController {
 <aop:aspectj-autoproxy/>
 ```
 
+## 总结
 
-
-
-
-
+对于Spring中父子容器的内容就讲到这里了，后续如果还有新的发现会继续更新相关内容。文中示例代码地址：
