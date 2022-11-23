@@ -3,11 +3,11 @@
 在使用SpringBoot的时候我们经常会用到各种Starter，例如我们在SpringBoot中使用Mybatis，我们只需要引入以下依赖：
 
 ```xml
-   	<dependency>
-   		<groupId>org.mybatis.spring.boot</groupId>
-   		<artifactId>mybatis-spring-boot-starter</artifactId>
-   		<version>1.3.2</version>
-   	</dependency>
+       <dependency>
+           <groupId>org.mybatis.spring.boot</groupId>
+           <artifactId>mybatis-spring-boot-starter</artifactId>
+           <version>1.3.2</version>
+       </dependency>
 ```
 
 然后我们只需要简单的引入少许配置即可使用Mybatis了。
@@ -150,8 +150,8 @@ public class UserController {
 
 ```json
 {
-	"userName": "DefaultUserService:小明",
-	"age": 18
+    "userName": "DefaultUserService:小明",
+    "age": 18
 }
 ```
 
@@ -172,8 +172,8 @@ public class BeanConfig {
 
 ```json
 {
-	"userName": "WebUserService:小明",
-	"age": 18
+    "userName": "WebUserService:小明",
+    "age": 18
 }
 ```
 
@@ -188,5 +188,3 @@ public class BeanConfig {
 - 配置spring.factories文件
 
 示例代码：```https://github.com/I-Like-Pepsi/demo-spring-boot-starter```
-
-
